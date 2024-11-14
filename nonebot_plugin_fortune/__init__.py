@@ -1,14 +1,16 @@
 from typing import Annotated
 
 from nonebot import on_command, on_fullmatch, on_regex, require
-from nonebot.adapters.onebot.v11 import (
-    GROUP,
+from nonebot.adapters.mirai2 import (
+    MessageEvent,
     GROUP_ADMIN,
     GROUP_OWNER,
-    GroupMessageEvent,
-    Message,
+    GroupMessage,
+    MessageChain,
     MessageSegment,
 )
+from nonebot.adapters.mirai2.message import MessageSegment, MessageType
+
 from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, Depends, RegexStr
@@ -44,66 +46,80 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-general_divine = on_command("今日运势", aliases={"抽签", "运势"}, permission=GROUP, priority=8)
-specific_divine = on_regex(r"^[^/]\S+抽签$", permission=GROUP, priority=8)
-limit_setting = on_regex(r"^指定(.*?)签$", permission=GROUP, priority=8)
+general_divine = on_regex(r"^运势$", priority=8)
+specific_divine = on_regex(r"^[^/]\S+抽签$", priority=8)
+limit_setting = on_regex(r"^指定(.*?)签$", priority=8)
 change_theme = on_regex(
     r"^设置(.*?)签$",
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER,
     priority=8,
     block=True,
 )
 reset_themes = on_regex(
     "^重置(抽签)?主题$",
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER,
     priority=8,
     block=True,
 )
-themes_list = on_fullmatch("主题列表", permission=GROUP, priority=8, block=True)
-show_themes = on_regex("^查看(抽签)?主题$", permission=GROUP, priority=8, block=True)
+themes_list = on_fullmatch("^.{2}列表$", priority=8, block=True)
+# themes_list_match = ['主题列表', '抽签列表', '抽取列表']
+show_themes = on_regex("^查看(抽签)?主题$", priority=8, block=True)
 
 
 @show_themes.handle()
-async def _(event: GroupMessageEvent):
-    gid: str = str(event.group_id)
+async def _(event: GroupMessage):
+    gid: str = str(event.sender.group.id)
     theme: str = fortune_manager.get_group_theme(gid)
     await show_themes.finish(f"当前群抽签主题：{FortuneThemesDict[theme][0]}")
 
-
+# 因为主题列表太长了，改为转发聊天记录的形式发送，请修改伪造聊天记录的发送者信息
 @themes_list.handle()
-async def _(event: GroupMessageEvent):
+async def _(event: GroupMessage):
     msg: str = FortuneManager.get_available_themes()
-    await themes_list.finish(msg)
+    forward_msg = MessageSegment(
+        type=MessageType.FORWARD,
+        nodeList=[
+            {
+                "senderId": 114514,
+                "time": 0,
+                "senderName": "saya",
+                "messageChain": [
+                    MessageSegment.plain(f"{msg}")
+                ]
+            }
+        ]
+    )
+    await themes_list.finish(forward_msg)
 
 
 @general_divine.handle()
-async def _(event: GroupMessageEvent, args: Annotated[Message, CommandArg()]):
-    arg: str = args.extract_plain_text()
+async def _(event: GroupMessage, arg: Annotated[str, RegexStr()]):
+    # arg: str = args.extract_plain_text()
 
     if "帮助" in arg[-2:]:
         await general_divine.finish(__fortune_usages__)
 
-    gid: str = str(event.group_id)
-    uid: str = str(event.user_id)
+    gid: str = str(event.sender.group.id)
+    uid: str = str(event.sender.id)
 
     is_first, image_file = fortune_manager.divine(gid, uid, None, None)
     if image_file is None:
         await general_divine.finish("今日运势生成出错……")
 
     if not is_first:
-        msg = MessageSegment.text("你今天抽过签了，再给你看一次哦🤗\n") + MessageSegment.image(
-            image_file
+        msg = MessageSegment.plain("你今天抽过签了，再给你看一次哦🤗\n") + MessageSegment.image(
+            path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
         )
     else:
         logger.info(f"User {uid} | Group {gid} 占卜了今日运势")
-        msg = MessageSegment.text("✨今日运势✨\n") + MessageSegment.image(image_file)
+        msg = MessageSegment.plain("✨今日运势✨\n") + MessageSegment.image(
+            path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
+        )
 
     await general_divine.finish(msg, at_sender=True)
 
 
 @specific_divine.handle()
 async def _(
-    matcher: Matcher, event: GroupMessageEvent, user_themes: Annotated[str, RegexStr()]
+    matcher: Matcher, event: GroupMessage, user_themes: Annotated[str, RegexStr()]
 ):
     user_theme: str = user_themes[:-2]
     if len(user_theme) < 1:
@@ -114,21 +130,21 @@ async def _(
             if not FortuneManager.theme_enable_check(theme):
                 await specific_divine.finish("该抽签主题未启用~")
             else:
-                gid: str = str(event.group_id)
-                uid: str = str(event.user_id)
+                gid: str = str(event.sender.group.id)
+                uid: str = str(event.sender.id)
 
                 is_first, image_file = fortune_manager.divine(gid, uid, theme, None)
                 if image_file is None:
                     await specific_divine.finish("今日运势生成出错……")
 
                 if not is_first:
-                    msg = MessageSegment.text(
-                        "你今天抽过签了，再给你看一次哦🤗\n"
-                    ) + MessageSegment.image(image_file)
+                    msg = MessageSegment.plain("你今天抽过签了，再给你看一次哦🤗\n") + MessageSegment.image(
+                        path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
+                    )
                 else:
                     logger.info(f"User {uid} | Group {gid} 占卜了今日运势")
-                    msg = MessageSegment.text("✨今日运势✨\n") + MessageSegment.image(
-                        image_file
+                    msg = MessageSegment.plain("✨今日运势✨\n") + MessageSegment.image(
+                        path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
                     )
 
             await specific_divine.finish(msg, at_sender=True)
@@ -146,26 +162,29 @@ async def get_user_arg(matcher: Matcher, args: Annotated[str, RegexStr()]) -> st
 
 @change_theme.handle()
 async def _(
-    event: GroupMessageEvent, user_theme: Annotated[str, Depends(get_user_arg)]
+    event: GroupMessage, user_theme: Annotated[str, Depends(get_user_arg)]
 ):
-    gid: str = str(event.group_id)
+    gid: str = str(event.sender.group.id)
 
-    for theme in FortuneThemesDict:
-        if user_theme in FortuneThemesDict[theme]:
-            if not fortune_manager.divination_setting(theme, gid):
-                await change_theme.finish("该抽签主题未启用~")
-            else:
-                await change_theme.finish("已设置当前群抽签主题~")
+    if event.sender.id != 785497966:
+        pass
+    else:
+        for theme in FortuneThemesDict:
+            if user_theme in FortuneThemesDict[theme]:
+                if not fortune_manager.divination_setting(theme, gid):
+                    await change_theme.finish("该抽签主题未启用~")
+                else:
+                    await change_theme.finish("已设置当前群抽签主题~")
 
-    await change_theme.finish("还没有这种抽签主题哦~")
+        await change_theme.finish("还没有这种抽签主题哦~")
 
 
 @limit_setting.handle()
-async def _(event: GroupMessageEvent, limit: Annotated[str, Depends(get_user_arg)]):
+async def _(event: GroupMessage, limit: Annotated[str, Depends(get_user_arg)]):
     logger.warning("指定签底抽签功能将在 v0.5.x 弃用")
 
-    gid: str = str(event.group_id)
-    uid: str = str(event.user_id)
+    gid: str = str(event.sender.group.id)
+    uid: str = str(event.sender.id)
 
     if limit == "随机":
         is_first, image_file = fortune_manager.divine(gid, uid, None, None)
@@ -181,23 +200,29 @@ async def _(event: GroupMessageEvent, limit: Annotated[str, Depends(get_user_arg
                 await limit_setting.finish("今日运势生成出错……")
 
     if not is_first:
-        msg = MessageSegment.text("你今天抽过签了，再给你看一次哦🤗\n") + MessageSegment.image(
-            image_file
+        msg = MessageSegment.plain("你今天抽过签了，再给你看一次哦🤗\n") + MessageSegment.image(
+            path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
         )
     else:
         logger.info(f"User {uid} | Group {gid} 占卜了今日运势")
-        msg = MessageSegment.text("✨今日运势✨\n") + MessageSegment.image(image_file)
+        msg = MessageSegment.plain("✨今日运势✨\n") + MessageSegment.image(
+            path=f"/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource/out/{gid}_{uid}.png"
+        )
 
-    await limit_setting.finish(msg, at_sender=True)
+    await limit_setting.finish(message=msg, at_sender=True)
 
 
 @reset_themes.handle()
-async def _(event: GroupMessageEvent):
-    gid: str = str(event.group_id)
-    if not fortune_manager.divination_setting("random", gid):
-        await reset_themes.finish("重置群抽签主题失败！")
+async def _(event: GroupMessage):
+    gid: str = str(event.sender.group.id)
 
-    await reset_themes.finish("已重置当前群抽签主题为随机~")
+    if event.sender.id != 785497966:
+        pass
+    else:
+        if not fortune_manager.divination_setting("random", gid):
+            await reset_themes.finish("重置群抽签主题失败！")
+
+        await reset_themes.finish("已重置当前群抽签主题为随机~")
 
 
 # 清空昨日生成的图片
