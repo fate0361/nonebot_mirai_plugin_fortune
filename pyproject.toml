@@ -1,16 +1,16 @@
 [tool.poetry]
-name = "nonebot_plugin_fortune"
-version = "0.4.12"
+name = "nonebot_mirai_plugin_fortune"
+version = "1.0.0"
 description = "Fortune divination!"
-authors = ["KafCoppelia <k740677208@gmail.com>"]
+authors = ["fate0361 <fate03610@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/MinatoAquaCrews/nonebot_plugin_fortune"
-homepage = "https://github.com/MinatoAquaCrews/nonebot_plugin_fortune"
-documentation = "https://github.com/MinatoAquaCrews/nonebot_plugin_fortune#readme"
-keywords = ["nonebot2", "nonebot-plugin", "Fortune", "MinatoAquaCrews"]
-packages = [{include = "nonebot_plugin_fortune"}]
-exclude = ["nonebot_plugin_fortune/resource/img"]
+repository = "https://github.com/fate0361/nonebot_mirai_plugin_fortune"
+homepage = "https://github.com/fate0361/nonebot_mirai_plugin_fortune"
+documentation = "https://github.com/fate0361/nonebot_mirai_plugin_fortune#readme"
+keywords = ["nonebot2", "nonebot_adapter_mirai", "nonebot-plugin", "Fortune", "fate0361"]
+packages = [{include = "nonebot_mirai_plugin_fortune"}]
+exclude = ["nonebot_mirai_plugin_fortune/resource/img"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
