@@ -14,7 +14,7 @@ from .download import ResourceError, download_resource
 	Key-Value: 主题资源文件夹名-主题别名
 """
 FortuneThemesDict: Dict[str, List[str]] = {
-    "random": ["随机"],
+    "random": ["随机", "随机主题"],
     "amazing_grace": ["奇异恩典"],
     "arknights": ["明日方舟", "方舟", "arknights", "鹰角", "Arknights", "舟游"],
     "asoul": ["Asoul", "asoul", "a手", "A手", "as", "As"],
@@ -37,10 +37,19 @@ FortuneThemesDict: Dict[str, List[str]] = {
     "touhou_lostword": ["东方归言录", "东方lostword", "touhou lostword"],
     "touhou_old": ["旧东方", "旧版东方", "老东方", "老版东方", "经典东方"],
     "warship_girls_r": ["战舰少女R", "舰r", "舰R", "wsgr", "WSGR", "战舰少女r"],
+    "kud": ["库特", "kud", "kudwafter", "Kud"],
+    "ab": ["立华奏", "ab", "angelbeats", "天使的心跳", "小奏"],
+    "nene": ["宁宁", "nene", "宁宁喵", "魔女的夜宴"],
+    "ba": ["碧蓝档案", "ba", "BA", "blue achieve"],
+    "siki": ["小识", "siki", "sprb", "SPRB"],
+    "murasame": ["幼刀", "丛雨", "小丛雨", "千恋万花"],
 }
 
 
-class PluginConfig(BaseModel, extra=Extra.ignore):
+class PluginConfig:
+    fortune_path = "/home/fate0361/mirai/onebot/none-bot/src/plugins/nonebot_plugin_fortune/resource"
+
+class PluginConfig2(BaseModel, extra=Extra.ignore):
     fortune_path: Path = Path(__file__).parent / "resource"
 
 
@@ -52,15 +61,15 @@ class ThemesFlagConfig(BaseModel, extra=Extra.ignore):
 
     amazing_grace_flag: bool = True
     arknights_flag: bool = True
-    asoul_flag: bool = True
+    asoul_flag: bool = False
     azure_flag: bool = True
     dc4_flag: bool = True
     einstein_flag: bool = True
     genshin_flag: bool = True
     granblue_fantasy_flag: bool = True
-    hololive_flag: bool = True
+    hololive_flag: bool = False
     hoshizora_flag: bool = True
-    liqingge_flag: bool = True
+    liqingge_flag: bool = False
     onmyoji_flag: bool = True
     pcr_flag: bool = True
     pretty_derby_flag: bool = True
@@ -72,6 +81,12 @@ class ThemesFlagConfig(BaseModel, extra=Extra.ignore):
     touhou_lostword_flag: bool = True
     touhou_old_flag: bool = True
     warship_girls_r_flag: bool = True
+    kud_flag: bool = True
+    ab_flag: bool = True
+    nene_flag: bool = True
+    ba_flag: bool = True
+    siki_flag: bool = True
+    murasame_flag: bool = True
 
     @root_validator
     def check_all_disabled(cls, values) -> None:
@@ -88,7 +103,7 @@ class ThemesFlagConfig(BaseModel, extra=Extra.ignore):
         return values
 
 
-class FortuneConfig(PluginConfig, ThemesFlagConfig):
+class FortuneConfig(PluginConfig2, ThemesFlagConfig):
     pass
 
 
@@ -103,7 +118,7 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 driver = get_driver()
-fortune_config: PluginConfig = PluginConfig.parse_obj(driver.config.dict())
+fortune_config: PluginConfig2 = PluginConfig2.parse_obj(driver.config.dict())
 themes_flag_config: ThemesFlagConfig = ThemesFlagConfig.parse_obj(driver.config.dict())
 
 
